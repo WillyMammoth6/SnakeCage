@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Snake Cage - 2D Pixel Platformer</title>
+    <style>
+        :root {
+            --bg-dark: #090b10;
+            --panel-bg: #131724;
+            --border-color: #363e5c;
+            --accent-gold: #facc15;
+            --accent-green: #4ade80;
+            --accent-cyan: #38bdf8;
+            --accent-red: #f87171;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #f8fafc;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+
+        .game-shell {
+            width: 100%;
+            max-width: 960px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Top Status HUD */
+        .hud-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            background: var(--panel-bg);
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 0 #05060a;
+        }
+
+        .brand-title {
+            font-size: clamp(15px, 2.3vw, 21px);
+            color: var(--accent-green);
+            letter-spacing: 1.5px;
+            text-shadow: 2px 2px 0 #052e16;
+        }
+
+        .hud-items {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            font-size: clamp(11px, 1.5vw, 13px);
+        }
+
+        .hud-pill {
+            background: #0b0d16;
+            border: 2px solid #282e47;
+            border-radius: 6px;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .hud-pill.key-ready {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+            background: rgba(250, 204, 21, 0.14);
+        }
+
+        .hud-pill.shield-active {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            background: rgba(56, 189, 248, 0.16);
+            animation: shieldPulse 0.55s infinite alternate;
+        }
+
+        @keyframes shieldPulse {
+            from { box-shadow: 0 0 3px rgba(56, 189, 248, 0.35); }
+            to { box-shadow: 0 0 12px rgba(56, 189, 248, 0.85); }
+        }
+
+        .stage-picker {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #0b0d16;
+            border: 2px solid #282e47;
+            border-radius: 6px;
+            padding: 3px 6px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .stage-picker input {
+            width: 46px;
+            background: #1e293b;
+            color: var(--accent-gold);
+            border: 1px solid #475569;
+            border-radius: 4px;
+            padding: 3px;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        /* Main 16:9 Pixel Viewport */
+        .viewport-frame {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #07080d;
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            outline: none;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Controls & Action Footer */
+        .controls-footer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            background: var(--panel-bg);
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 0 #05060a;
+        }
+
+        .controls-hint {
+            font-size: clamp(11px, 1.5vw, 13px);
+            color: #cbd5e1;
+            line-height: 1.5;
+        }
+
+        .kbd {
+            display: inline-block;
+            background: #252b42;
+            color: #ffffff;
+            border: 1px solid #525d8a;
+            border-bottom-width: 3px;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 11px;
+        }
+
+        .actions-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn {
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 2px solid #090b12;
+            color: #ffffff;
+            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+            box-shadow: 0 3px 0 #1e3a8a, inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            cursor: pointer;
+            transition: transform 0.05s;
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #1e3a8a;
+        }
+
+        .btn.amber {
+            background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+            box-shadow: 0 3px 0 #78350f, inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+
+        .btn.green {
+            background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+            box-shadow: 0 3px 0 #14532d, inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+
+        /* On-Screen Touch / Click Backup Controls */
+        .onscreen-pad {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding-top: 2px;
+        }
+
+        .pad-cluster {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pad-btn {
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 14px;
+            min-width: 60px;
+            height: 46px;
+            padding: 0 14px;
+            border-radius: 8px;
+            border: 2px solid #475569;
+            background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+            color: #f8fafc;
+            box-shadow: 0 4px 0 #0f172a, inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .pad-btn:active, .pad-btn.active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #0f172a;
+            background: #475569;
+        }
+
+        .pad-btn.jump {
+            background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+            border-color: #34d399;
+            box-shadow: 0 4px 0 #064e3b, inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-shell">
+    <!-- Top HUD Bar -->
+    <div class="hud-bar">
+        <div class="brand-title">🐍 SNAKE CAGE</div>
+        <div class="hud-items">
+            <div class="hud-pill" id="hud-level">LEVEL 1 / 100</div>
+            <div class="hud-pill" id="hud-tier">TIER: CHALLENGER</div>
+            <div class="hud-pill" id="hud-key">KEY: 🔒 NEEDED</div>
+            <div class="hud-pill" id="hud-shield" style="display: none;">✨ SHIELD: 20.0s</div>
+            <div class="hud-pill" id="hud-deaths" style="color: #fca5a5;">DEATHS: 0</div>
+            <div class="stage-picker">
+                <label for="stageInput">STAGE:</label>
+                <input type="number" id="stageInput" min="1" max="100" value="1">
+                <button type="button" class="btn" id="btnGoLevel">GO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main 16:9 Pixel Canvas -->
+    <div class="viewport-frame">
+        <canvas id="gameCanvas" width="480" height="270" tabindex="0" aria-label="Snake Cage Game Canvas"></canvas>
+    </div>
+
+    <!-- Controls Legend & Level Actions -->
+    <div class="controls-footer">
+        <div class="controls-hint">
+            <span class="kbd">←</span> <span class="kbd">→</span> Move &nbsp;|&nbsp;
+            <span class="kbd">↑</span> Jump Through Platforms &nbsp;|&nbsp;
+            <span class="kbd">↓</span> Drop &nbsp;|&nbsp;
+            <span class="kbd">R</span> Restart
+        </div>
+        <div class="actions-row">
+            <button type="button" class="btn amber" id="btnRestart">↻ RESTART (R)</button>
+            <button type="button" class="btn" id="btnMute">🔊 SFX</button>
+            <button type="button" class="btn green" id="btnNewGame">★ LEVEL 1</button>
+        </div>
+    </div>
+
+    <!-- On-Screen Touch / Click Backup Controls -->
+    <div class="onscreen-pad">
+        <div class="pad-cluster">
+            <button type="button" class="pad-btn" id="padLeft" aria-label="Move Left">◀ LEFT</button>
+            <button type="button" class="pad-btn" id="padRight" aria-label="Move Right">RIGHT ▶</button>
+            <button type="button" class="pad-btn" id="padDown" aria-label="Drop Down">▼ DROP</button>
+        </div>
+        <button type="button" class="pad-btn jump" id="padJump" aria-label="Jump">▲ JUMP</button>
+    </div>
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+    'use strict';
+
+    // =========================================================================
+    // 1. SAFE NON-BLOCKING 8-BIT WEB AUDIO SYNTHESIZER
+    // =========================================================================
+    class SoundFX {
+        constructor() {
+            this.ctx = null;
+            this.muted = false;
+        }
+
+        unlock() {
+            try {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) {
+                        this.ctx = new AudioCtx();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume().catch(() => {});
+                }
+            } catch (_) {}
+        }
+
+        beep(freqStart, freqEnd, duration, type = 'square', gainVal = 0.08) {
+            if (this.muted) return;
+            try {
+                this.unlock();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freqStart, now);
+                if (freqEnd !== freqStart) {
+                    osc.frequency.exponentialRampToValueAtTime(Math.max(25, freqEnd), now + duration);
+                }
+                gain.gain.setValueAtTime(gainVal, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + duration);
+            } catch (_) {}
+        }
+
+        jump() {
+            this.beep(195, 480, 0.14, 'square', 0.08);
+        }
+
+        stomp() {
+            this.beep(310, 90, 0.12, 'sawtooth', 0.11);
+            setTimeout(() => this.beep(460, 700, 0.09, 'square', 0.08), 50);
+        }
+
+        keyPickup() {
+            this.beep(587.33, 587.33, 0.08, 'square', 0.1);
+            setTimeout(() => this.beep(880, 940, 0.2, 'square', 0.11), 75);
+        }
+
+        orbPickup() {
+            const notes = [440, 554.37, 659.25, 880, 1174.66];
+            notes.forEach((n, i) => {
+                setTimeout(() => this.beep(n, n * 1.04, 0.09, 'triangle', 0.1), i * 45);
+            });
+        }
+
+        spring() {
+            this.beep(220, 660, 0.16, 'triangle', 0.1);
+        }
+
+        die() {
+            this.beep(250, 52, 0.35, 'sawtooth', 0.12);
+        }
+
+        levelClear() {
+            const fanfare = [523.25, 659.25, 783.99, 1046.5];
+            fanfare.forEach((n, i) => {
+                setTimeout(() => this.beep(n, n, 0.13, 'square', 0.11), i * 85);
+            });
+        }
+    }
+
+    const sfx = new SoundFX();
+
+    // =========================================================================
+    // 2. CANVAS & RETRO PIXEL CONSTANTS (480 x 270 VIRTUAL RESOLUTION)
+    // =========================================================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const V_W = 480;
+    const V_H = 270;
+    const WALL_T = 12;          // Outer iron cage wall thickness
+    const PIT_FLOOR_Y = 256;    // Bottom snake pit floor Y
+    const PIT_DANGER_Y = 244;   // Pit hazard trigger Y
+
+    canvas.width = V_W;
+    canvas.height = V_H;
+    ctx.imageSmoothingEnabled = false;
+
+    function focusGame() {
+        const active = document.activeElement;
+        if (active && active.tagName === 'INPUT') {
+            active.blur();
+        }
+        window.focus();
+        canvas.focus({ preventScroll: true });
+    }
+    focusGame();
+    setTimeout(focusGame, 50);
+
+    // =========================================================================
+    // 3. PLAYER PHYSICS CONSTANTS (GUARANTEED REACHABILITY)
+    // =========================================================================
+    // Max Jump Height = (275^2) / (2 * 556) = 68.0 px
+    // Total Air Time  = (2 * 275) / 556 = 0.989 s
+    // Max Flat Reach  = 125 * 0.989 = 123.6 px
+    // O(1) Step Builder strictly constrains every consecutive step to:
+    //   vertical rise <= 46 px  and  horizontal gap <= 78 px
+    const MOVE_SPEED = 125;
+    const JUMP_VEL = -275;
+    const GRAVITY = 556;
+    const STOMP_BOUNCE_VEL = -238;
+    const SPRING_BOUNCE_VEL = -350;
+
+    // =========================================================================
+    // 4. DETERMINISTIC O(1) LEVEL GENERATOR (100 UNIQUE ESCALATING LEVELS)
+    // =========================================================================
+    const ARCHETYPES = [
+        'terraced_ascent',
+        'zigzag_switchbacks',
+        'twin_towers',
+        'stepping_bridge',
+        'split_cavern',
+        'moving_gauntlet',
+        'high_key_vault',
+        'pit_slalom'
+    ];
+
+    const SUBTITLES = [
+        "ESCAPE THE SNAKE PIT",
+        "VENOM CROSSING",
+        "SERPENT ELEVATOR",
+        "VIPER GAUNTLET",
+        "KING COBRA'S CHAMBER",
+        "TERRACED FANG ASCENT",
+        "COILED SWITCHBACKS",
+        "TWIN SERPENT TOWERS",
+        "STEPPING STONE PIT",
+        "SPLIT CAVERN RUN",
+        "MOVING FANG GAUNTLET",
+        "HIGH KEY SANCTUM",
+        "SNAKE PIT SLALOM",
+        "IRON CAGE TRIAL"
+    ];
+
+    function getDifficultyTier(levelNum) {
+        if (levelNum <= 10) return 'CHALLENGER';
+        if (levelNum <= 25) return 'DANGER';
+        if (levelNum <= 45) return 'HAZARD';
+        if (levelNum <= 60) return 'NIGHTMARE';
+        return 'IMPOSSIBLE';
+    }
+
+    function makeRng(seed) {
+        let s = (seed >>> 0) || 1;
+        return () => {
+            s = (s * 1664525 + 1013904223) >>> 0;
+            return s / 4294967296;
+        };
+    }
+
+    function randInt(rng, min, max) {
+        return Math.floor(rng() * (max - min + 1)) + min;
+    }
+
+    function randRange(rng, min, max) {
+        return min + rng() * (max - min);
+    }
+
+    /**
+     * Generates a single level on demand in O(1) time (<1ms) with zero heavy loops.
+     * Every consecutive platform step is constructed within vertical rise <= 46px
+     * and horizontal gap <= 78px so 100% of levels are guaranteed passable.
+     */
+    function generateLevel(levelNum) {
+        const clampedNum = Math.max(1, Math.min(100, levelNum));
+        const tier = getDifficultyTier(clampedNum);
+        const progress = (clampedNum - 1) / 99;
+        const curve = Math.pow(progress, 0.8);
+
+        const archetype = ARCHETYPES[(clampedNum - 1 + Math.floor((clampedNum - 1) / 8) * 3) % ARCHETYPES.length];
+        const rng = makeRng(clampedNum * 104729 + archetype.length * 7919 + 1337);
+
+        const platforms = [];
+        const snakes = [];
+
+        // Platform widths shrink smoothly from 56px in Level 1 down to 30px in Level 100
+        const platW = Math.round(56 - curve * 26);
+        // Vertical step strictly <= 46px (player jumps 68px)
+        const maxRise = Math.round(36 + curve * 10);
+        // Horizontal gap strictly <= 78px (player jumps 123px)
+        const maxGap = Math.round(48 + curve * 30);
+
+        const moveChance = Math.min(0.85, 0.25 + curve * 0.6);
+        const moveSpeed = 30 + curve * 46;
+
+        const addPlat = (x, y, w, extra = {}) => {
+            const cw = Math.max(28, Math.min(72, Math.round(w)));
+            const cx = Math.max(14, Math.min(V_W - 14 - cw, Math.round(x)));
+            const cy = Math.max(54, Math.min(212, Math.round(y)));
+            const p = {
+                x: cx,
+                y: cy,
+                w: cw,
+                h: 10,
+                vx: extra.vx || 0,
+                vy: extra.vy || 0,
+                minX: extra.minX ?? cx,
+                maxX: extra.maxX ?? cx,
+                minY: extra.minY ?? cy,
+                maxY: extra.maxY ?? cy,
+                prevX: cx,
+                prevY: cy
+            };
+            platforms.push(p);
+            return p;
+        };
+
+        const addMotion = (p, preferVertical = false) => {
+            if (rng() > moveChance) return p;
+            if (preferVertical && p.y > 76 && p.y < 194) {
+                const amp = randInt(rng, 10, 16);
+                p.vy = Math.round(moveSpeed * 0.65) * (rng() < 0.5 ? 1 : -1);
+                p.minY = Math.max(56, p.y - amp);
+                p.maxY = Math.min(208, p.y + amp);
+            } else {
+                const span = randInt(rng, 16, 26);
+                const minX = Math.max(16, p.x - span);
+                const maxX = Math.min(V_W - 16 - p.w, p.x + span);
+                if (maxX - minX >= 12) {
+                    p.vx = Math.round(moveSpeed) * (rng() < 0.5 ? 1 : -1);
+                    p.minX = minX;
+                    p.maxX = maxX;
+                }
+            }
+            return p;
+        };
+
+        // Helper: Chain N platforms from a starting platform with guaranteed <=46px rise and <=78px gap
+        const chainStep = (fromPlat, targetX, targetY, w = platW, animate = true) => {
+            const fromCenter = fromPlat.x + fromPlat.w / 2;
+            const dir = targetX >= fromCenter ? 1 : -1;
+            const edgeX = dir > 0 ? fromPlat.x + fromPlat.w : fromPlat.x;
+            const gap = Math.min(maxGap, Math.max(24, Math.abs(targetX - edgeX)));
+            const nextX = dir > 0 ? edgeX + gap : edgeX - gap - w;
+
+            const dy = targetY - fromPlat.y;
+            const clampedDy = dy < 0 ? Math.max(-maxRise, dy) : Math.min(54, dy);
+            const nextY = fromPlat.y + clampedDy;
+
+            const p = addPlat(nextX, nextY, w);
+            if (animate) addMotion(p, rng() < 0.3);
+            return p;
+        };
+
+        let spawn = { x: 22, y: 186 };
+        let keyPos = { x: 240, y: 44 };
+        let doorPos = { x: 444, y: 172, w: 22, h: 36 };
+        let orbPos = { x: 120, y: 120 };
+        let spawnPlat = null;
+        let keyPlat = null;
+        let doorPlat = null;
+        let orbPlat = null;
+
+        if (archetype === 'terraced_ascent') {
+            spawnPlat = addPlat(14, 208, platW + 8);
+            spawn = { x: spawnPlat.x + 10, y: spawnPlat.y - 22 };
+
+            let cur = spawnPlat;
+            const steps = 4;
+            for (let i = 0; i < steps; i++) {
+                const aimX = i < 3 ? cur.x + cur.w + 55 : cur.x - 45;
+                const aimY = cur.y - randInt(rng, 34, maxRise);
+                cur = chainStep(cur, aimX, aimY, platW, i > 0);
+                if (i === 1) {
+                    orbPlat = cur;
+                    orbPos = { x: cur.x + Math.floor(cur.w / 2), y: cur.y - 22 };
+                }
+            }
+            keyPlat = cur;
+            keyPos = { x: keyPlat.x + Math.floor(keyPlat.w / 2), y: keyPlat.y - 20 };
+
+            // Safe bridge over to right exit door
+            const b1 = chainStep(spawnPlat, 160, 186, platW, true);
+            const b2 = chainStep(b1, 280, 196, platW, true);
+            doorPlat = addPlat(404, 206, platW + 12);
+            chainStep(b2, doorPlat.x, doorPlat.y, platW, false);
+            doorPos = { x: doorPlat.x + doorPlat.w - 24, y: doorPlat.y - 36, w: 22, h: 36 };
+
+        } else if (archetype === 'zigzag_switchbacks') {
+            spawnPlat = addPlat(14, 208, platW + 8);
+            spawn = { x: spawnPlat.x + 10, y: spawnPlat.y - 22 };
+
+            const p1 = chainStep(spawnPlat, 135, 172, platW, true);
+            const p2 = chainStep(p1, 260, 136, platW, false);
+            orbPlat = p2;
+            orbPos = { x: p2.x + Math.floor(p2.w / 2), y: p2.y - 22 };
+
+            const p3 = chainStep(p2, 150, 98, platW, true);
+            const p4 = chainStep(p3, 45, 62, platW + 6, false);
+            keyPlat = p4;
+            keyPos = { x: keyPlat.x + Math.floor(keyPlat.w / 2), y: keyPlat.y - 20 };
+
+            // High route to right-wall exit door
+            const r1 = chainStep(p2, 355, 114, platW, true);
+            doorPlat = addPlat(404, 96, platW + 12);
+            if (doorPlat.x - (r1.x + r1.w) > maxGap) {
+                chainStep(r1, doorPlat.x, doorPlat.y, platW, false);
+            }
+            doorPos = { x: doorPlat.x + doorPlat.w - 24, y: doorPlat.y - 36, w: 22, h: 36 };
+
+        } else if (archetype === 'twin_towers') {
+            spawnPlat = addPlat(204, 208, platW + 16);
+            spawn = { x: spawnPlat.x + Math.floor(spawnPlat.w / 2) - 6, y: spawnPlat.y - 22 };
+
+            // Left tower climb to Key
+            const l1 = chainStep(spawnPlat, 120, 170, platW, true);
+            const l2 = chainStep(l1, 35, 130, platW, false);
+            const l3 = chainStep(l2, 110, 92, platW, true);
+            keyPlat = addPlat(14, 62, platW + 8);
+            keyPos = { x: keyPlat.x + Math.floor(keyPlat.w / 2), y: keyPlat.y - 20 };
+
+            // Center orb perch
+            orbPlat = chainStep(l1, 224, 136, platW, false);
+            orbPos = { x: orbPlat.x + Math.floor(orbPlat.w / 2), y: orbPlat.y - 22 };
+
+            // Right tower climb to Exit Door
+            const r1 = chainStep(spawnPlat, 330, 170, platW, true);
+            const r2 = chainStep(r1, 415, 130, platW, false);
+            const r3 = chainStep(r2, 335, 92, platW, true);
+            doorPlat = addPlat(404, 68, platW + 12);
+            doorPos = { x: doorPlat.x + doorPlat.w - 24, y: doorPlat.y - 36, w: 22, h: 36 };
+            void l3; void r3;
+
+        } else if (archetype === 'stepping_bridge') {
+            spawnPlat = addPlat(14, 204, platW + 8);
+            spawn = { x: spawnPlat.x + 10, y: spawnPlat.y - 22 };
+
+            const s1 = chainStep(spawnPlat, 118, 188, platW, true);
+            const s2 = chainStep(s1, 218, 172, platW, false);
+            const s3 = chainStep(s2, 318, 188, platW, true);
+            doorPlat = addPlat(404, 204, platW + 12);
+            doorPos = { x: doorPlat.x + doorPlat.w - 24, y: doorPlat.y - 36, w: 22, h: 36 };
+
+            // High key branch above center bridge
+            const h1 = chainStep(s2, 145, 130, platW, true);
+            orbPlat = h1;
+            orbPos = { x: h1.x + Math.floor(h1.w / 2), y: h1.y - 22 };
+            const h2 = chainStep(h1, 235, 92, platW, false);
+            keyPlat = chainStep(h2, 320, 60, platW + 6, false);
+            keyPos = { x: keyPlat.x + Math.floor(keyPlat.w / 2), y: keyPlat.y - 20 };
+            void s3;
+
+        } else if (archetype === 'split_cavern') {
+            spawnPlat = addPlat(14, 146, platW + 10);
+            spawn = { x: spawnPlat.x + 10, y: spawnPlat.y - 22 };
+
+            // Upper path to Key
+            const u1 = chainStep(spawnPlat, 120, 108, platW, true);
+            const u2 = chainStep(u1, 224, 72, platW, false);
+            keyPlat = chainStep(u2, 326, 58, platW + 6, false);
+            keyPos = { x: keyPlat.x + Math.floor(keyPlat.w / 2), y: keyPlat.y - 20 };
+
+            // Lower path to Orb & Exit Door
+            const d1 = chainStep(spawnPlat, 120, 186, platW, false);
+            orbPlat = chainStep(d1, 224, 202, platW, true);
+            orbPos = { x: orbPlat.x + Math.floor(orbPlat.w / 2), y: orbPlat.y - 22 };
+            const d2 = chainStep(orbPlat, 326, 178, platW, true);
+            doorPlat = addPlat(404, 152, platW + 12);
+            doorPos = { x: doorPlat.x + doorPlat.w - 24, y: doorPlat.y - 36, w: 22, h: 36 };
+            void d2;
+
+        } else if (archetype === 'moving_gauntlet') {
+            spawnPlat = addPlat(14, 206, platW + 8);
+            spawn = { x: spawnPlat.x + 10, y: spawnPlat.y - 22 };
+
+            const m1 = chainStep(spawnPlat, 118, 176, platW, true);
+            orbPlat = m1;
+            orbPos = { x: m1.x + Math.floor(m1.w / 2), y: m1.y - 22 };
+            const m2 = chainStep(m1, 218, 140, platW, true);
+            const m3 = chainStep(m2, 318, 102, platW, true);
+            keyPlat = chainStep(m3, 220, 64, platW + 6, false);
+            keyPos = { x: keyPlat.x + Math.floor(keyPlat.w / 2), y: keyPlat.y - 20 };
+
+            const m4 = chainStep(m3, 345, 134, platW, true);
+            doorPlat = addPlat(404, 158, platW + 12);
+            doorPos = { x: doorPlat.x + doorPlat.w - 24, y: doorPlat.y - 36, w: 22, h: 36 };
+            void m4;
+
+        } else if (archetype === 'high_key_vault') {
+            spawnPlat = addPlat(14, 208, platW + 8);
+            spawn = { x: spawnPlat.x + 10, y: spawnPlat.y - 22 };
+
+            const k1 = chainStep(spawnPlat, 120, 168, platW, true);
+            const k2 = chainStep(k1, 224, 128, platW, false);
+            orbPlat = chainStep(k2, 120, 92, platW, true);
+            orbPos = { x: orbPlat.x + Math.floor(orbPlat.w / 2), y: orbPlat.y - 22 };
+
+            keyPlat = chainStep(k2, 315, 86, platW + 6, false);
+            keyPos = { x: keyPlat.x + Math.floor(keyPlat.w / 2), y: keyPlat.y - 20 };
+
+            doorPlat = addPlat(404, 80, platW + 12);
+            doorPos = { x: doorPlat.x + doorPlat.w - 24, y: doorPlat.y - 36, w: 22, h: 36 };
+
+        } else {
+            // 'pit_slalom': Starts high left, dips low across snake pit, climbs high for key, exits bottom-left
+            spawnPlat = addPlat(14, 118, platW + 8);
+            spawn = { x: spawnPlat.x + 10, y: spawnPlat.y - 22 };
+
+            const p1 = chainStep(spawnPlat, 120, 164, platW, true);
+            const p2 = chainStep(p1, 224, 204, platW, false);
+            orbPlat = chainStep(p2, 324, 198, platW, true);
+            orbPos = { x: orbPlat.x + Math.floor(orbPlat.w / 2), y: orbPlat.y - 22 };
+
+            const p3 = chainStep(orbPlat, 404, 156, platW, false);
+            const p4 = chainStep(p3, 315, 114, platW, true);
+            const p5 = chainStep(p4, 220, 76, platW, false);
+            keyPlat = chainStep(p5, 120, 58, platW + 6, false);
+            keyPos = { x: keyPlat.x + Math.floor(keyPlat.w / 2), y: keyPlat.y - 20 };
+
+            // Drop-down path to bottom-left exit door
+            const dLow = chainStep(p2, 120, 206, platW, false);
+            doorPlat = addPlat(14, 208, platW + 12);
+            doorPos = { x: doorPlat.x + 2, y: doorPlat.y - 36, w: 22, h: 36 };
+            void dLow;
+        }
+
+        // Populate bottom snake pit (4 snakes in Level 1 up to 11 rapid snakes in Level 100)
+        const pitCount = Math.min(11, 4 + Math.floor(curve * 7.2));
+        const hues = ['#22c55e', '#84cc16', '#10b981', '#eab308', '#f97316', '#ef4444'];
+        const span = (V_W - 36) / pitCount;
+
+        for (let i = 0; i < pitCount; i++) {
+            const minX = Math.round(16 + i * span);
+            const maxX = Math.round(Math.min(V_W - 18, minX + span + 24));
+            const startX = Math.round(minX + rng() * Math.max(4, maxX - minX));
+            const speed = Math.round(52 + curve * 64 + randRange(rng, -4, 10));
+            snakes.push({
+                x: startX,
+                y: PIT_FLOOR_Y,
+                minX,
+                maxX,
+                speed,
+                dir: (i + clampedNum) % 2 === 0 ? 1 : -1,
+                hue: hues[(clampedNum + i) % hues.length],
+                alive: true,
+                animOffset: rng() * 10
+            });
+        }
+
+        // Optional patrolling ledge-guard snakes on wide static intermediate platforms (Level 4+)
+        const maxLedgeSnakes = clampedNum < 4 ? 0 : clampedNum < 25 ? 1 : clampedNum < 60 ? 2 : 3;
+        let ledgeAdded = 0;
+        for (const p of platforms) {
+            if (ledgeAdded >= maxLedgeSnakes) break;
+            if (p === spawnPlat || p === keyPlat || p === doorPlat || p === orbPlat) continue;
+            if (p.w >= 44 && p.vx === 0 && p.vy === 0 && rng() < 0.65) {
+                snakes.push({
+                    x: p.x + Math.floor(p.w / 2),
+                    y: p.y,
+                    minX: p.x + 4,
+                    maxX: p.x + p.w - 4,
+                    speed: Math.round(22 + curve * 26),
+                    dir: rng() < 0.5 ? 1 : -1,
+                    hue: '#ef4444',
+                    alive: true,
+                    animOffset: rng() * 10
+                });
+                ledgeAdded++;
+            }
+        }
+
+        return {
+            number: clampedNum,
+            name: `LEVEL ${clampedNum}`,
+            tier,
+            subtitle: `${tier} • ${SUBTITLES[(clampedNum - 1) % SUBTITLES.length]}`,
+            spawn,
+            door: doorPos,
+            key: keyPos,
+            orb: orbPos,
+            platforms,
+            snakes
+        };
+    }
+
+    // =========================================================================
+    // 5. GAME STATE & INPUT HANDLING (ZERO FOCUS TRAPS)
+    // =========================================================================
+    const keys = {
+        left: false,
+        right: false,
+        up: false,
+        down: false
+    };
+
+    const state = {
+        levelNum: 1,
+        level: null,
+        deaths: 0,
+        hasKey: false,
+        invincibleTimer: 0,     // 20.0 seconds when orb collected
+        bannerTimer: 2.6,       // Shows big "LEVEL X" text at start of each stage
+        bannerSub: '',
+        particles: [],
+        popups: [],
+        shakeTimer: 0,
+        time: 0,
+        victory: false
+    };
+
+    const player = {
+        x: 24,
+        y: 180,
+        w: 12,
+        h: 22,
+        vx: 0,
+        vy: 0,
+        facing: 1,
+        onGround: false,
+        standingPlatform: null,
+        dropThroughPlatform: null,
+        coyoteTimer: 0,
+        jumpBufferTimer: 0,
+        animTime: 0
+    };
+
+    function spawnParticles(x, y, color, count = 12, speed = 85) {
+        for (let i = 0; i < count; i++) {
+            const ang = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+            const spd = speed * (0.4 + Math.random() * 0.8);
+            state.particles.push({
+                x,
+                y,
+                vx: Math.cos(ang) * spd,
+                vy: Math.sin(ang) * spd - 25,
+                life: 0.45 + Math.random() * 0.25,
+                maxLife: 0.7,
+                size: Math.random() < 0.5 ? 2 : 3,
+                color
+            });
+        }
+    }
+
+    function spawnPopup(x, y, text, color = '#facc15') {
+        state.popups.push({
+            x,
+            y,
+            text,
+            color,
+            life: 1.05
+        });
+    }
+
+    function loadLevel(levelNum, resetDeaths = false) {
+        if (resetDeaths) state.deaths = 0;
+        const target = Math.max(1, Math.min(100, Math.floor(Number(levelNum) || 1)));
+        state.levelNum = target;
+        state.level = generateLevel(target);
+        state.hasKey = false;
+        state.invincibleTimer = 0;
+        state.bannerTimer = 2.5;
+        state.bannerSub = state.level.subtitle;
+        state.particles = [];
+        state.popups = [];
+        state.shakeTimer = 0;
+        state.victory = false;
+
+        player.x = state.level.spawn.x;
+        player.y = state.level.spawn.y;
+        player.vx = 0;
+        player.vy = 0;
+        player.facing = 1;
+        player.onGround = false;
+        player.standingPlatform = null;
+        player.dropThroughPlatform = null;
+        player.coyoteTimer = 0;
+        player.jumpBufferTimer = 0;
+
+        updateHud();
+        focusGame();
+    }
+
+    function killPlayer(reasonText = 'BITTEN!') {
+        state.deaths++;
+        sfx.die();
+        spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#f87171', 20, 115);
+        loadLevel(state.levelNum, false);
+        state.shakeTimer = 0.24;
+        spawnPopup(player.x + 6, player.y - 8, reasonText, '#f87171');
+    }
+
+    // Keyboard listeners (passive: false so Arrow keys never scroll the page)
+    window.addEventListener('keydown', (e) => {
+        const active = document.activeElement;
+        const typingInStageInput = active && active.id === 'stageInput';
+
+        if (typingInStageInput) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                loadLevel(active.value, false);
+            }
+            return;
+        }
+
+        const code = e.code;
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(code)) {
+            e.preventDefault();
+        }
+
+        sfx.unlock();
+
+        if (code === 'ArrowLeft' || code === 'KeyA') keys.left = true;
+        if (code === 'ArrowRight' || code === 'KeyD') keys.right = true;
+        if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') {
+            if (!keys.up) {
+                player.jumpBufferTimer = 0.14;
+            }
+            keys.up = true;
+        }
+        if (code === 'ArrowDown' || code === 'KeyS') {
+            keys.down = true;
+            if (player.onGround && player.standingPlatform) {
+                player.dropThroughPlatform = player.standingPlatform;
+                player.onGround = false;
+                player.standingPlatform = null;
+                player.y += 3;
+            }
+        }
+        if (code === 'KeyR') {
+            loadLevel(state.levelNum, false);
+        }
+    }, { passive: false });
+
+    window.addEventListener('keyup', (e) => {
+        const code = e.code;
+        if (code === 'ArrowLeft' || code === 'KeyA') keys.left = false;
+        if (code === 'ArrowRight' || code === 'KeyD') keys.right = false;
+        if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') keys.up = false;
+        if (code === 'ArrowDown' || code === 'KeyS') keys.down = false;
+    });
+
+    window.addEventListener('blur', () => {
+        keys.left = false;
+        keys.right = false;
+        keys.up = false;
+        keys.down = false;
+    });
+
+    canvas.addEventListener('pointerdown', () => {
+        sfx.unlock();
+        focusGame();
+    });
+
+    // UI Buttons & Stage Selector
+    const stageInput = document.getElementById('stageInput');
+    document.getElementById('btnGoLevel').addEventListener('click', () => {
+        sfx.unlock();
+        loadLevel(stageInput.value, false);
+    });
+
+    document.getElementById('btnRestart').addEventListener('click', () => {
+        sfx.unlock();
+        loadLevel(state.levelNum, false);
+    });
+
+    document.getElementById('btnNewGame').addEventListener('click', () => {
+        sfx.unlock();
+        loadLevel(1, true);
+    });
+
+    const btnMute = document.getElementById('btnMute');
+    btnMute.addEventListener('click', () => {
+        sfx.muted = !sfx.muted;
+        btnMute.textContent = sfx.muted ? '🔇 MUTED' : '🔊 SFX';
+        focusGame();
+    });
+
+    // On-screen Touch / Mouse Pad Bindings
+    function bindPadButton(btnId, keyName, onPressExtra = null) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        const press = (e) => {
+            e.preventDefault();
+            sfx.unlock();
+            keys[keyName] = true;
+            btn.classList.add('active');
+            if (onPressExtra) onPressExtra();
+        };
+        const release = (e) => {
+            e.preventDefault();
+            keys[keyName] = false;
+            btn.classList.remove('active');
+        };
+        btn.addEventListener('pointerdown', press);
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointerleave', release);
+        btn.addEventListener('pointercancel', release);
+    }
+
+    bindPadButton('padLeft', 'left');
+    bindPadButton('padRight', 'right');
+    bindPadButton('padJump', 'up', () => {
+        player.jumpBufferTimer = 0.14;
+    });
+    bindPadButton('padDown', 'down', () => {
+        if (player.onGround && player.standingPlatform) {
+            player.dropThroughPlatform = player.standingPlatform;
+            player.onGround = false;
+            player.standingPlatform = null;
+            player.y += 3;
+        }
+    });
+
+    // =========================================================================
+    // 6. PHYSICS & GAMEPLAY SIMULATION STEP
+    // =========================================================================
+    function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+        return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+    }
+
+    function updateHud() {
+        const lvl = state.level;
+        const hudLevel = document.getElementById('hud-level');
+        const hudTier = document.getElementById('hud-tier');
+        const hudKey = document.getElementById('hud-key');
+        const hudShield = document.getElementById('hud-shield');
+        const hudDeaths = document.getElementById('hud-deaths');
+
+        hudLevel.textContent = `LEVEL ${state.levelNum} / 100`;
+        hudTier.textContent = `TIER: ${lvl.tier}`;
+        hudTier.style.color =
+            lvl.tier === 'IMPOSSIBLE' ? '#f43f5e' :
+            lvl.tier === 'NIGHTMARE' ? '#f472b6' :
+            lvl.tier === 'HAZARD' ? '#fb923c' :
+            lvl.tier === 'DANGER' ? '#facc15' : '#38bdf8';
+
+        stageInput.value = state.levelNum;
+
+        if (state.hasKey) {
+            hudKey.textContent = 'KEY: 🔑 UNLOCKED!';
+            hudKey.classList.add('key-ready');
+        } else {
+            hudKey.textContent = 'KEY: 🔒 NEEDED';
+            hudKey.classList.remove('key-ready');
+        }
+
+        if (state.invincibleTimer > 0) {
+            hudShield.style.display = 'flex';
+            hudShield.classList.add('shield-active');
+            hudShield.textContent = `✨ SHIELD: ${state.invincibleTimer.toFixed(1)}s`;
+        } else {
+            hudShield.style.display = 'none';
+            hudShield.classList.remove('shield-active');
+        }
+
+        hudDeaths.textContent = `DEATHS: ${state.deaths}`;
+    }
+
+    function update(dt) {
+        state.time += dt;
+        if (state.bannerTimer > 0) state.bannerTimer = Math.max(0, state.bannerTimer - dt);
+        if (state.shakeTimer > 0) state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+
+        if (state.invincibleTimer > 0) {
+            state.invincibleTimer = Math.max(0, state.invincibleTimer - dt);
+        }
+
+        const lvl = state.level;
+
+        // 1. Update Moving Platforms & Carry Player if Standing on One
+        for (const p of lvl.platforms) {
+            p.prevX = p.x;
+            p.prevY = p.y;
+
+            if (p.vx !== 0) {
+                p.x += p.vx * dt;
+                if (p.x <= p.minX) {
+                    p.x = p.minX;
+                    p.vx = Math.abs(p.vx);
+                } else if (p.x >= p.maxX) {
+                    p.x = p.maxX;
+                    p.vx = -Math.abs(p.vx);
+                }
+            }
+            if (p.vy !== 0) {
+                p.y += p.vy * dt;
+                if (p.y <= p.minY) {
+                    p.y = p.minY;
+                    p.vy = Math.abs(p.vy);
+                } else if (p.y >= p.maxY) {
+                    p.y = p.maxY;
+                    p.vy = -Math.abs(p.vy);
+                }
+            }
+        }
+
+        if (player.onGround && player.standingPlatform) {
+            const sp = player.standingPlatform;
+            player.x += sp.x - sp.prevX;
+            player.y += sp.y - sp.prevY;
+        }
+
+        // 2. Horizontal Movement & Outer Cage Wall Clamping
+        let moveDir = 0;
+        if (keys.left) moveDir -= 1;
+        if (keys.right) moveDir += 1;
+
+        player.vx = moveDir * MOVE_SPEED;
+        if (moveDir !== 0) {
+            player.facing = moveDir;
+            player.animTime += dt * 11;
+        } else {
+            player.animTime = 0;
+        }
+
+        player.x += player.vx * dt;
+        if (player.x < WALL_T) player.x = WALL_T;
+        if (player.x + player.w > V_W - WALL_T) player.x = V_W - WALL_T - player.w;
+
+        // 3. Coyote Time, Jump Buffering & Vertical Gravity
+        if (player.onGround) {
+            player.coyoteTimer = 0.1;
+        } else {
+            player.coyoteTimer = Math.max(0, player.coyoteTimer - dt);
+        }
+
+        if (player.jumpBufferTimer > 0) {
+            player.jumpBufferTimer = Math.max(0, player.jumpBufferTimer - dt);
+        }
+
+        if (player.jumpBufferTimer > 0 && player.coyoteTimer > 0) {
+            player.vy = JUMP_VEL;
+            player.onGround = false;
+            player.standingPlatform = null;
+            player.dropThroughPlatform = null;
+            player.coyoteTimer = 0;
+            player.jumpBufferTimer = 0;
+            sfx.jump();
+            spawnParticles(player.x + player.w / 2, player.y + player.h, '#cbd5e1', 6, 45);
+        }
+
+        const prevBottom = player.y + player.h;
+        player.vy += GRAVITY * dt;
+        if (player.vy > 420) player.vy = 420;
+        player.y += player.vy * dt;
+
+        // Ceiling collision
+        if (player.y < WALL_T) {
+            player.y = WALL_T;
+            if (player.vy < 0) player.vy = 0;
+        }
+
+        // 4. 100% One-Way Jump-Through Platform Landing
+        // When vy < 0 (jumping upward), player passes completely through all interior platforms!
+        // When vy >= 0 (descending) and crossing from above platform top, player lands cleanly on top.
+        player.onGround = false;
+        player.standingPlatform = null;
+        const currBottom = player.y + player.h;
+
+        if (player.vy >= 0) {
+            let bestPlat = null;
+            let bestTop = Infinity;
+
+            for (const p of lvl.platforms) {
+                if (p === player.dropThroughPlatform) continue;
+                const horizOverlap = (player.x + player.w - 2) > p.x && (player.x + 2) < (p.x + p.w);
+                if (!horizOverlap) continue;
+
+                if (prevBottom <= p.prevY + 6 && currBottom >= p.y) {
+                    if (p.y < bestTop) {
+                        bestTop = p.y;
+                        bestPlat = p;
+                    }
+                }
+            }
+
+            if (bestPlat) {
+                player.y = bestPlat.y - player.h;
+                player.vy = 0;
+                player.onGround = true;
+                player.standingPlatform = bestPlat;
+                player.dropThroughPlatform = null;
+            }
+        }
+
+        // Clear drop-through lock once player has fallen below that platform
+        if (player.dropThroughPlatform && player.y > player.dropThroughPlatform.y + player.dropThroughPlatform.h) {
+            player.dropThroughPlatform = null;
+        }
+
+        // 5. Pit Floor & Corner Escape Springs
+        if (player.y + player.h >= PIT_FLOOR_Y) {
+            player.y = PIT_FLOOR_Y - player.h;
+            player.vy = 0;
+            player.onGround = true;
+
+            if (state.invincibleTimer <= 0) {
+                killPlayer('FELL IN SNAKE PIT!');
+                return;
+            }
+
+            // Corner bounce springs let invincible players launch back up onto platforms
+            const onLeftSpring = player.x < WALL_T + 26;
+            const onRightSpring = player.x + player.w > V_W - WALL_T - 26;
+            if (onLeftSpring || onRightSpring) {
+                player.vy = SPRING_BOUNCE_VEL;
+                player.onGround = false;
+                sfx.spring();
+                spawnParticles(player.x + 6, PIT_FLOOR_Y - 2, '#38bdf8', 10, 80);
+                spawnPopup(player.x + 6, player.y - 8, 'SPRING!', '#38bdf8');
+            }
+        } else if (player.y + player.h >= PIT_DANGER_Y && state.invincibleTimer <= 0) {
+            killPlayer('SNAKE PIT!');
+            return;
+        }
+
+        // 6. Update Snakes & Head-Stomp / Body-Hazard Collisions
+        for (const s of lvl.snakes) {
+            if (!s.alive) continue;
+
+            s.x += s.speed * s.dir * dt;
+            if (s.x <= s.minX) {
+                s.x = s.minX;
+                s.dir = 1;
+            } else if (s.x >= s.maxX) {
+                s.x = s.maxX;
+                s.dir = -1;
+            }
+
+            // Snake hitbox: 20px wide, 9px tall above s.y
+            const sx = s.x - 10;
+            const sy = s.y - 9;
+            const sw = 20;
+            const sh = 9;
+
+            if (rectsOverlap(player.x + 1, player.y + 1, player.w - 2, player.h - 1, sx, sy, sw, sh)) {
+                // Head position depends on snake direction
+                const headX = s.dir > 0 ? s.x + 2 : s.x - 11;
+                const headW = 9;
+                const landingOnHead =
+                    player.vy >= -10 &&
+                    prevBottom <= sy + 6 &&
+                    (player.x + player.w) >= headX - 2 &&
+                    player.x <= (headX + headW + 2);
+
+                if (landingOnHead) {
+                    // Stomp snake head -> snake disappears and player bounces upward!
+                    s.alive = false;
+                    player.y = sy - player.h;
+                    player.vy = STOMP_BOUNCE_VEL;
+                    player.onGround = false;
+                    sfx.stomp();
+                    spawnParticles(headX + 4, sy + 3, s.hue, 14, 95);
+                    spawnPopup(headX + 4, sy - 8, 'STOMP!', '#4ade80');
+                } else if (state.invincibleTimer > 0) {
+                    // Invincible shield protects player completely
+                    if (Math.random() < 0.25) {
+                        spawnParticles(player.x + 6, player.y + 12, '#38bdf8', 2, 40);
+                    }
+                } else {
+                    killPlayer('SNAKE BITE!');
+                    return;
+                }
+            }
+        }
+
+        // 7. Collect Glowing Ball (20-Second Invincibility Shield)
+        if (lvl.orb && !lvl.orb.collected) {
+            const ox = lvl.orb.x - 7;
+            const oy = lvl.orb.y - 7;
+            if (rectsOverlap(player.x, player.y, player.w, player.h, ox, oy, 14, 14)) {
+                lvl.orb.collected = true;
+                state.invincibleTimer = 20.0;
+                sfx.orbPickup();
+                spawnParticles(lvl.orb.x, lvl.orb.y, '#38bdf8', 22, 110);
+                spawnPopup(lvl.orb.x, lvl.orb.y - 10, '20s INVINCIBLE!', '#38bdf8');
+            }
+        }
+
+        // 8. Collect Golden Key
+        if (!state.hasKey) {
+            const kx = lvl.key.x - 7;
+            const ky = lvl.key.y - 7;
+            if (rectsOverlap(player.x, player.y, player.w, player.h, kx, ky, 14, 14)) {
+                state.hasKey = true;
+                sfx.keyPickup();
+                spawnParticles(lvl.key.x, lvl.key.y, '#facc15', 18, 95);
+                spawnPopup(lvl.key.x, lvl.key.y - 10, 'KEY UNLOCKED!', '#facc15');
+            }
+        }
+
+        // 9. Enter Unlocked Exit Door -> Proceed to Next Level
+        const d = lvl.door;
+        if (state.hasKey && rectsOverlap(player.x, player.y, player.w, player.h, d.x, d.y, d.w, d.h)) {
+            sfx.levelClear();
+            spawnParticles(d.x + d.w / 2, d.y + d.h / 2, '#4ade80', 26, 120);
+            if (state.levelNum < 100) {
+                loadLevel(state.levelNum + 1, false);
+                return;
+            } else {
+                state.victory = true;
+                state.bannerTimer = 999;
+            }
+        }
+
+        // 10. Update Particles & Floating Popups
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+            const pt = state.particles[i];
+            pt.x += pt.vx * dt;
+            pt.y += pt.vy * dt;
+            pt.vy += 190 * dt;
+            pt.life -= dt;
+            if (pt.life <= 0) state.particles.splice(i, 1);
+        }
+
+        for (let i = state.popups.length - 1; i >= 0; i--) {
+            const pop = state.popups[i];
+            pop.y -= 24 * dt;
+            pop.life -= dt;
+            if (pop.life <= 0) state.popups.splice(i, 1);
+        }
+
+        updateHud();
+    }
+
+    // =========================================================================
+    // 7. PIXEL-ART RENDERING ENGINE
+    // =========================================================================
+    function drawBackgroundAndCage() {
+        // Deep dungeon brick backdrop
+        ctx.fillStyle = '#0b0e17';
+        ctx.fillRect(0, 0, V_W, V_H);
+
+        // Subtle pixel brick pattern
+        ctx.fillStyle = '#111625';
+        for (let row = 0; row < 14; row++) {
+            const y = 14 + row * 18;
+            const offset = (row % 2) * 18;
+            for (let col = 0; col < 14; col++) {
+                ctx.fillRect(14 + col * 36 + offset, y, 32, 14);
+            }
+        }
+
+        // Background vertical cage bars
+        ctx.fillStyle = '#182034';
+        for (let x = 36; x < V_W - 24; x += 44) {
+            ctx.fillRect(x, WALL_T, 3, PIT_FLOOR_Y - WALL_T);
+        }
+
+        // Pit hazard warning glow band
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.14)';
+        ctx.fillRect(WALL_T, PIT_DANGER_Y - 4, V_W - WALL_T * 2, PIT_FLOOR_Y - PIT_DANGER_Y + 4);
+
+        // Pit floor stones
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(WALL_T, PIT_FLOOR_Y, V_W - WALL_T * 2, V_H - PIT_FLOOR_Y);
+        ctx.fillStyle = '#334155';
+        for (let x = WALL_T; x < V_W - WALL_T; x += 16) {
+            ctx.fillRect(x, PIT_FLOOR_Y, 14, 3);
+        }
+
+        // Corner Pit Bounce Springs (for escaping pit while invincible)
+        drawSpring(WALL_T + 4, PIT_FLOOR_Y);
+        drawSpring(V_W - WALL_T - 20, PIT_FLOOR_Y);
+
+        // Outer Iron Cage Walls (Left, Right, Top)
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(0, 0, WALL_T, V_H);
+        ctx.fillRect(V_W - WALL_T, 0, WALL_T, V_H);
+        ctx.fillRect(0, 0, V_W, WALL_T);
+
+        // Iron rivets
+        ctx.fillStyle = '#64748b';
+        for (let y = 8; y < V_H; y += 20) {
+            ctx.fillRect(4, y, 3, 3);
+            ctx.fillRect(V_W - 7, y, 3, 3);
+        }
+        for (let x = 16; x < V_W - 12; x += 24) {
+            ctx.fillRect(x, 4, 3, 3);
+        }
+    }
+
+    function drawSpring(x, floorY) {
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(x, floorY - 3, 16, 3);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(x + 2, floorY - 7, 12, 2);
+        ctx.fillStyle = '#bae6fd';
+        ctx.fillRect(x + 1, floorY - 10, 14, 3);
+    }
+
+    function drawPlatforms() {
+        for (const p of state.level.platforms) {
+            const x = Math.round(p.x);
+            const y = Math.round(p.y);
+            const w = Math.round(p.w);
+
+            // Solid bright top walkway (indicates you land on top)
+            ctx.fillStyle = p.vx !== 0 || p.vy !== 0 ? '#38bdf8' : '#94a3b8';
+            ctx.fillRect(x, y, w, 3);
+
+            ctx.fillStyle = p.vx !== 0 || p.vy !== 0 ? '#0284c7' : '#64748b';
+            ctx.fillRect(x, y + 3, w, 2);
+
+            // Open grated underside (visually signals 100% jump-through from underneath)
+            ctx.fillStyle = '#334155';
+            for (let gx = x + 3; gx < x + w - 3; gx += 7) {
+                ctx.fillRect(gx, y + 5, 2, 4);
+            }
+            // Upward chevron hint on wider ledges
+            if (w >= 38) {
+                const mid = x + Math.floor(w / 2);
+                ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
+                ctx.fillRect(mid - 1, y + 6, 2, 1);
+                ctx.fillRect(mid - 2, y + 7, 4, 1);
+            }
+        }
+    }
+
+    function drawExitDoor() {
+        const d = state.level.door;
+        const open = state.hasKey;
+
+        // Stone door frame
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(d.x - 2, d.y - 2, d.w + 4, d.h + 2);
+
+        if (open) {
+            // Glowing emerald open portal
+            const pulse = Math.sin(state.time * 7) * 0.2 + 0.8;
+            ctx.fillStyle = `rgba(34, 197, 94, ${pulse})`;
+            ctx.fillRect(d.x, d.y, d.w, d.h);
+            ctx.fillStyle = '#bbf7d0';
+            ctx.fillRect(d.x + 5, d.y + 4, d.w - 10, d.h - 6);
+        } else {
+            // Locked iron barred door
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(d.x, d.y, d.w, d.h);
+            ctx.fillStyle = '#64748b';
+            for (let bx = d.x + 3; bx < d.x + d.w - 2; bx += 5) {
+                ctx.fillRect(bx, d.y + 2, 2, d.h - 2);
+            }
+            // Golden padlock emblem
+            ctx.fillStyle = '#facc15';
+            ctx.fillRect(d.x + Math.floor(d.w / 2) - 3, d.y + 16, 6, 6);
+            ctx.fillStyle = '#854d0e';
+            ctx.fillRect(d.x + Math.floor(d.w / 2) - 1, d.y + 18, 2, 3);
+        }
+    }
+
+    function drawKey() {
+        if (state.hasKey) return;
+        const k = state.level.key;
+        const bob = Math.round(Math.sin(state.time * 5) * 2);
+        const x = Math.round(k.x);
+        const y = Math.round(k.y + bob);
+
+        // Soft golden glow
+        ctx.fillStyle = 'rgba(250, 204, 21, 0.24)';
+        ctx.fillRect(x - 7, y - 7, 14, 14);
+
+        // Pixel key ring
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(x - 4, y - 5, 8, 6);
+        ctx.fillStyle = '#0b0e17';
+        ctx.fillRect(x - 2, y - 3, 4, 2);
+
+        // Key shaft & teeth
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(x - 1, y + 1, 2, 7);
+        ctx.fillRect(x + 1, y + 4, 3, 2);
+        ctx.fillRect(x + 1, y + 7, 3, 2);
+    }
+
+    function drawOrb() {
+        const orb = state.level.orb;
+        if (!orb || orb.collected) return;
+
+        const pulse = Math.sin(state.time * 6);
+        const x = Math.round(orb.x);
+        const y = Math.round(orb.y + Math.round(pulse * 1.5));
+
+        // Outer pulsing aura
+        ctx.fillStyle = pulse > 0 ? 'rgba(56, 189, 248, 0.28)' : 'rgba(250, 204, 21, 0.28)';
+        ctx.fillRect(x - 8, y - 8, 16, 16);
+
+        // Glowing ball core
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(x - 5, y - 5, 10, 10);
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(x - 3, y - 3, 6, 6);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x - 2, y - 2, 2, 2);
+    }
+
+    function drawSnakes() {
+        for (const s of state.level.snakes) {
+            if (!s.alive) continue;
+            const x = Math.round(s.x);
+            const y = Math.round(s.y);
+            const wave = Math.round(Math.sin(state.time * 10 + s.animOffset));
+
+            // Slithering body segments
+            ctx.fillStyle = s.hue;
+            if (s.dir > 0) {
+                ctx.fillRect(x - 10, y - 4 + (wave > 0 ? -1 : 0), 5, 4);
+                ctx.fillRect(x - 5, y - 5 + (wave < 0 ? -1 : 0), 6, 5);
+                // Highlighted stomp-able snake head on the right
+                ctx.fillStyle = '#fef08a';
+                ctx.fillRect(x + 1, y - 8, 8, 7);
+                ctx.fillStyle = s.hue;
+                ctx.fillRect(x + 2, y - 7, 6, 5);
+                // Eye
+                ctx.fillStyle = '#090b10';
+                ctx.fillRect(x + 6, y - 6, 2, 2);
+                // Flickering red forked tongue
+                if (Math.sin(state.time * 16 + s.animOffset) > -0.2) {
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(x + 9, y - 4, 4, 1);
+                    ctx.fillRect(x + 12, y - 5, 2, 1);
+                    ctx.fillRect(x + 12, y - 3, 2, 1);
+                }
+            } else {
+                ctx.fillRect(x + 5, y - 4 + (wave > 0 ? -1 : 0), 5, 4);
+                ctx.fillRect(x - 1, y - 5 + (wave < 0 ? -1 : 0), 6, 5);
+                // Highlighted stomp-able snake head on the left
+                ctx.fillStyle = '#fef08a';
+                ctx.fillRect(x - 9, y - 8, 8, 7);
+                ctx.fillStyle = s.hue;
+                ctx.fillRect(x - 8, y - 7, 6, 5);
+                // Eye
+                ctx.fillStyle = '#090b10';
+                ctx.fillRect(x - 8, y - 6, 2, 2);
+                // Flickering red forked tongue
+                if (Math.sin(state.time * 16 + s.animOffset) > -0.2) {
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(x - 13, y - 4, 4, 1);
+                    ctx.fillRect(x - 14, y - 5, 2, 1);
+                    ctx.fillRect(x - 14, y - 3, 2, 1);
+                }
+            }
+        }
+    }
+
+    function drawClothedStickFigure() {
+        const x = Math.round(player.x);
+        const y = Math.round(player.y);
+        const f = player.facing;
+
+        // Invincibility pulsing rainbow shield aura
+        if (state.invincibleTimer > 0) {
+            const rainbow = ['#38bdf8', '#facc15', '#4ade80', '#f472b6'];
+            const auraColor = rainbow[Math.floor(state.time * 12) % rainbow.length];
+            ctx.strokeStyle = auraColor;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(x - 3, y - 3, player.w + 6, player.h + 5);
+        }
+
+        // 1. Directional Adventurer Cap (crimson & gold trim)
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(x + 2, y, 8, 3);
+        ctx.fillStyle = '#facc15';
+        if (f > 0) {
+            ctx.fillRect(x + 7, y + 2, 5, 1);
+        } else {
+            ctx.fillRect(x, y + 2, 5, 1);
+        }
+
+        // 2. Stick-Figure Head & Eye
+        ctx.fillStyle = '#fde68a';
+        ctx.fillRect(x + 3, y + 3, 6, 5);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(f > 0 ? x + 7 : x + 4, y + 4, 1, 2);
+
+        // 3. Crimson Adventurer Tunic with Shading & Gold Belt
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(x + 3, y + 8, 6, 6);
+        ctx.fillStyle = '#b91c1c';
+        ctx.fillRect(f > 0 ? x + 3 : x + 7, y + 8, 2, 6);
+        // Gold belt
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(x + 3, y + 13, 6, 1);
+
+        // 4. Animated Stick Arms with Tunic Sleeves
+        const swing = player.onGround ? Math.round(Math.sin(player.animTime) * 2) : -2;
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(x + 1, y + 9, 2, 2);
+        ctx.fillRect(x + 9, y + 9, 2, 2);
+        ctx.fillStyle = '#fde68a';
+        ctx.fillRect(x + 1, y + 11 + swing, 2, 2);
+        ctx.fillRect(x + 9, y + 11 - swing, 2, 2);
+
+        // 5. Blue Pants & Brown Leather Boots (Running / Jumping Stride)
+        const stride = !player.onGround ? 2 : Math.round(Math.sin(player.animTime) * 2);
+        ctx.fillStyle = '#2563eb';
+        // Left leg
+        ctx.fillRect(x + 3 - Math.max(0, stride), y + 14, 2, 5);
+        // Right leg
+        ctx.fillRect(x + 7 + Math.max(0, -stride), y + 14, 2, 5);
+
+        // Brown boots
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(x + 2 - Math.max(0, stride), y + 19, 3, 3);
+        ctx.fillRect(x + 7 + Math.max(0, -stride), y + 19, 3, 3);
+    }
+
+    function drawParticlesAndPopups() {
+        for (const pt of state.particles) {
+            ctx.fillStyle = pt.color;
+            ctx.fillRect(Math.round(pt.x), Math.round(pt.y), pt.size, pt.size);
+        }
+
+        ctx.font = 'bold 9px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        for (const pop of state.popups) {
+            ctx.fillStyle = '#090b10';
+            ctx.fillText(pop.text, Math.round(pop.x) + 1, Math.round(pop.y) + 1);
+            ctx.fillStyle = pop.color;
+            ctx.fillText(pop.text, Math.round(pop.x), Math.round(pop.y));
+        }
+    }
+
+    function drawLevelBanner() {
+        if (state.bannerTimer <= 0 && !state.victory) return;
+
+        const alpha = state.victory ? 0.92 : Math.min(1, state.bannerTimer * 1.4);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // Dark retro banner strip across center of screen
+        ctx.fillStyle = 'rgba(9, 11, 16, 0.84)';
+        ctx.fillRect(36, 94, V_W - 72, 74);
+        ctx.strokeStyle = state.victory ? '#4ade80' : '#facc15';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(36, 94, V_W - 72, 74);
+
+        ctx.textAlign = 'center';
+        if (state.victory) {
+            ctx.font = 'bold 24px "Courier New", monospace';
+            ctx.fillStyle = '#4ade80';
+            ctx.fillText('ALL 100 CAGES CLEARED!', V_W / 2, 127);
+
+            ctx.font = 'bold 11px "Courier New", monospace';
+            ctx.fillStyle = '#facc15';
+            ctx.fillText(`TOTAL DEATHS: ${state.deaths} • PRESS LEVEL 1 TO PLAY AGAIN`, V_W / 2, 149);
+        } else {
+            // Big bold words saying whatever level you are on
+            ctx.font = 'bold 30px "Courier New", monospace';
+            ctx.fillStyle = '#05060a';
+            ctx.fillText(state.level.name, V_W / 2 + 2, 130 + 2);
+            ctx.fillStyle = '#facc15';
+            ctx.fillText(state.level.name, V_W / 2, 130);
+
+            ctx.font = 'bold 10px "Courier New", monospace';
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillText(state.bannerSub, V_W / 2, 151);
+        }
+
+        ctx.restore();
+    }
+
+    function render() {
+        ctx.save();
+        if (state.shakeTimer > 0) {
+            const sx = Math.round((Math.random() - 0.5) * 6);
+            const sy = Math.round((Math.random() - 0.5) * 6);
+            ctx.translate(sx, sy);
+        }
+
+        drawBackgroundAndCage();
+        drawExitDoor();
+        drawPlatforms();
+        drawKey();
+        drawOrb();
+        drawSnakes();
+        drawClothedStickFigure();
+        drawParticlesAndPopups();
+        drawLevelBanner();
+
+        ctx.restore();
+    }
+
+    // =========================================================================
+    // 8. MAIN FIXED-CLAMPED REQUESTANIMATIONFRAME LOOP
+    // =========================================================================
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+        const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
+        lastTime = now;
+
+        if (!state.victory) {
+            update(dt);
+        }
+        render();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    // Start immediately on Level 1
+    loadLevel(1, true);
+    requestAnimationFrame(gameLoop);
+});
+</script>
+</body>
+</html>
